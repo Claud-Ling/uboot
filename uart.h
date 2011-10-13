@@ -2,13 +2,11 @@
  * uart.h
  *
  *  Created on: 06.10.2011
- *      Author: IBezhenar
+ *      Author: moldov
  */
 
 #ifndef UART_H_
 #define UART_H_
-
-
 
 
 //UART functions

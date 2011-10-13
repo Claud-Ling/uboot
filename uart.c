@@ -2,33 +2,32 @@
  * uart.c
  *
  *  Created on: 06.10.2011
- *      Author: IBezhenar
+ *      Author: moldov
  */
 #include <avr/io.h>              // Most basic include files
 #include <avr/interrupt.h>       // Add the necessary ones here
 
-
-#ifndef F_CPU         //define cpu clock speed if not defined
-#define F_CPU 7372800UL   //
-#endif
+/* CPU frequency */
+#ifndef F_CPU
+	#define F_CPU 7372800UL
+#endif //F_CPU
 
 /* UART baud rate */
-#define USART_BAUDRATE  115200
+#ifndef UART_BAUDRATE
+	#define UART_BAUDRATE 115200
+#endif //UART_BAUD
 
-#define BAUD_PRESCALE ((F_CPU/(USART_BAUDRATE * 16UL)) - 1)
-//BAUD_PRESCALE -> the value to be inserted in UBRRL and UBRRH to set the required baud rate
-//F_CPU         -> the crystal frequency, using 16MHz in this program
+#define UBRRVAL ((F_CPU/(UART_BAUDRATE*16UL))-1)
 
-
-
-
+void USART_transmit( unsigned char data ) {
+	/* Wait for empty transmit buffer */
+	while ( !( UCSRA & (1<<UDRE)) ); /* Put data into buffer, sends the data */
+	UDR = data;
+}
 void USART_init() {
 	/* Set baud rate */
-	UBRRL = BAUD_PRESCALE;      //load lower 8-bits for baud rate, calculated/stored in BAUD_PRESCALE
-	UBRRH = BAUD_PRESCALE >> 8;   //load higher 8-bits for baud rate, calculated/stored in BAUD_PRESCALE
-
-	//UBRRH = (unsigned char)(baud>>8);
-	//UBRRL = (unsigned char)baud;
+	UBRRH = UBRRVAL>>8;
+	UBRRL = UBRRVAL;
 
 	/* Enable receiver and transmitter */
 	UCSRB = (1<<RXEN)|(1<<TXEN);
@@ -40,10 +39,4 @@ unsigned char USART_receive( void ) {
 	/* Wait for data to be received */
 	while ( !(UCSRA & (1<<RXC)) ); /* Get and return received data from buffer */
 	return UDR;
-}
-
-void USART_transmit( unsigned char data ) {
-	/* Wait for empty transmit buffer */
-	while ( !( UCSRA & (1<<UDRE)) ); /* Put data into buffer, sends the data */
-	UDR = data;
 }

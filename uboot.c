@@ -1,5 +1,5 @@
 /*
- * boot_demo.c
+ * uart.c
  *
  *  Created on: 06.10.2011
  *      Author: IBezhenar
@@ -9,6 +9,7 @@
 #include <avr/interrupt.h>       // Add the necessary ones here
 #include "uart.h"
 #include <string.h>
+#include <util/delay.h>
 
 #define ACK		0x06
 #define NACK	0x15
@@ -32,7 +33,7 @@ int xmodem_calculate_crc(unsigned int crc, unsigned char data)
 	return crc;
 }
 
-void xmodem_receive(){
+int xmodem_receive(){
 	int attempts = 0;
 	int packet = 1;
 	unsigned int checksum;
@@ -81,10 +82,10 @@ void xmodem_receive(){
 		else {
 		//ALL RECEIVED SUCCESFULLY
 		//NOTIFY
-		break;
+		return 0;
 		}
 	}//while(attempts < MAX_ATTEMPTS){
-
+	return packet;
 
 
 }
@@ -93,13 +94,79 @@ void xmodem_receive(){
 
 int main(void) {
 
-	xmodem_receive();
+	//UART Port speed 115200  for the crystal freq. 7.3MHz
+	USART_init ();
+
+	USART_transmit('c');// Change the directory on
+	USART_transmit('d');//ARM to home. Cannot run
+	USART_transmit(' ');///home/status STATUS__
+	USART_transmit('/');//need to cd to /home
+	USART_transmit('h');
+	USART_transmit('o');
+	USART_transmit('m');
+	USART_transmit('e');
+	USART_transmit(0x0A);
+
+	USART_transmit('.');// Change the directory on
+	USART_transmit('/');
+	USART_transmit('x');//ARM to home. Cannot run
+	USART_transmit('m');///home/status STATUS__
+	USART_transmit('o');//need to cd to /home
+	USART_transmit('d');
+	USART_transmit('e');
+	USART_transmit('m');
+	USART_transmit(' ');
+	USART_transmit('-');// Change the directory on
+	USART_transmit('p');//ARM to home. Cannot run
+	USART_transmit(' ');///home/status STATUS__
+	USART_transmit('/');//need to cd to /home
+	USART_transmit('d');
+	USART_transmit('e');
+	USART_transmit('v');
+	USART_transmit('/');
+	USART_transmit('c');
+	USART_transmit('o');
+	USART_transmit('n');
+	USART_transmit('s');
+	USART_transmit('o');
+	USART_transmit('l');
+	USART_transmit('e');
+	USART_transmit(' ');
+	USART_transmit('-');// Change the directory on
+	USART_transmit('i');// Change the directory on
+	USART_transmit(' ');// Change the directory on
+	USART_transmit('a');// Change the directory on
+	USART_transmit('v');
+	USART_transmit('r');
+	USART_transmit('_');
+	USART_transmit('r');
+	USART_transmit('o');
+	USART_transmit('b');
+	USART_transmit('o');
+	USART_transmit('t');
+	USART_transmit('.');
+	USART_transmit('h');
+	USART_transmit('e');
+	USART_transmit('x');
+	USART_transmit(0x0A);
+
+
+
+	_delay_us(100);
+	USART_transmit('C');
+	//PORTA = xmodem_receive();
+	//NO SUCCES - NOTIFY
+
+
+
 	//close xmodem on ARM side
 	//USART_transmit(0x03)//^C;
 	USART_transmit('^');
 	USART_transmit('C');
 	USART_transmit(0x0A);
 }
+
+
 
 
 

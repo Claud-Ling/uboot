@@ -1,0 +1,14 @@
+Bootloder for AVR
+
+WHAT IS GOING 2 B IMPLEMENTED
+Xmodem function with CRC checking
+LED indication of each packet
+Watchdog if nothing is going on
+Check every 128 bytes received, and write in flash if the content is different
+LED indication of succesfully received firmware
+Led indication for waiting time for incoming firmware
+Do not write 1A bytes in the end of the last packet
+
+
+
+WHAT IS ALREADY IMPLEMENTED AND CHECKED
