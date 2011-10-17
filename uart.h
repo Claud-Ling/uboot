@@ -11,7 +11,7 @@
 
 //UART functions
 void USART_transmit( unsigned char data );
-void USART_init();
+void USART_init( void );
 unsigned char USART_receive( void );
 
 

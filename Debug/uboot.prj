@@ -8,20 +8,20 @@
 .MICRO "ATmega32"
 ;ON MAC OS X
 ;;;;;;;;;;;;;;;;;
-.TOOLCHAIN "GENERIC"
+;.TOOLCHAIN "GENERIC"
 ;;;;;;;;;;;;;;;;;
 
 ;ON WINDOWS
 ;;;;;;;;;;;;;;;;;
-;.TOOLCHAIN "GCC"
-;.GCCPATH   "C:\WinAVR"
-;.GCCMAKE   AUTO
+.TOOLCHAIN "GCC"
+.GCCPATH   "C:\WinAVR"
+.GCCMAKE   AUTO
 ;;;;;;;;;;;;;;;;;
 
 
 .TARGET    "uboot.hex"
 .COFF      "uboot.cof"
-.SOURCE    "uboot.c"
+.SOURCE    "uboot.c" "uart.c"
 
 .TRACE              ; Activate micro trace
 
@@ -36,7 +36,7 @@
 ; Define here the hardware around the micro
 ; ------------------------------------------------------------
 
-.plot V(AREF) V(PA0) V(PD0) V(PD1)
+.plot V(AREF) V(PA0) V(PD0) V(PD1) V(PB3)
 ;D1 VDD PB0
 ;D2 VDD PB1
 ;D3 VDD PB2
@@ -47,11 +47,11 @@
 ;D8 VDD PB7
 
 ;FOR ADC DEBUGGING
-V1  AREF VSS SLIDER_1(0 3.3) ;x: Panel sliders 1 - 3
-V2  AVCC VSS SLIDER_1(0 3.3) ;x: Panel sliders 1 - 3
-V3 PA0 VSS SLIDER_2 (0 3.3) ;
+;V1  AREF VSS SLIDER_1(0 3.3) ;x: Panel sliders 1 - 3
+;V2  AVCC VSS SLIDER_1(0 3.3) ;x: Panel sliders 1 - 3
+;V3 PA0 VSS SLIDER_2 (0 3.3) ;
 
-R2 AGND VSS 1;
+;R2 PB3 VSS 1;
 
 ;FOR DEBUG
 
@@ -65,12 +65,37 @@ R2 AGND VSS 1;
 
 ;PD0 - RXD On Atmega
 ;PD1 - TXD On Atmega
-;R1 PD0 tx 1
-R3 PD1 rx 1
 
+R1 PD0 tx 1
+R2 PD1 rx 1
+;R3 PD1 rx 1
+;R4 PD0 tx 1
 
 XCOM1 _comxch(115200 8 0 0 1) tx rx
-X1 TTY2(115200 8)VSS tx
+;X1 TTY2(115200 8)PD0 PD1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

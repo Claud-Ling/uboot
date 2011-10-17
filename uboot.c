@@ -1,4 +1,4 @@
-/*
+ /*
  * uart.c
  *
  *  Created on: 06.10.2011
@@ -23,6 +23,20 @@
 
 #define MAX_ATTEMPTS 5
 
+volatile unsigned int buffer_index = 0;
+volatile int attempts = 0;
+volatile char command_indicator = 0x00;
+
+//volatile int packet = 1;
+volatile   char receive_buffer[HEAD+PKT_LEN+CSUM];
+	volatile union  {
+			unsigned volatile  int checksum;
+			unsigned volatile  char val[4];
+		} csum;
+
+volatile  int i;
+volatile  char receive[500];
+
 int xmodem_calculate_crc(unsigned int crc, unsigned char data)
 {
 	crc  = (unsigned char)(crc >> 8) | (crc << 8);
@@ -33,69 +47,32 @@ int xmodem_calculate_crc(unsigned int crc, unsigned char data)
 	return crc;
 }
 
-int xmodem_receive(){
-	int attempts = 0;
-	int packet = 1;
-	unsigned int checksum;
-	unsigned char receive_buffer[HEAD+PKT_LEN+CSUM];
+ISR(TIMER1_COMPA_vect)
+{
+   command_indicator = 'g';
+   USART_transmit('C');
+   USART_transmit(0x0A);
 
-	USART_transmit('C');
-
-	while(attempts < MAX_ATTEMPTS){
-
-		USART_receive();
-		if ( UDR != EOT ) {
-			if (UDR == SOH ) {
-				USART_receive();
-				if (UDR == packet ) {
-					USART_receive();
-					if (UDR == 255 - packet ) {
-					//all headers checks passed so we can receive
-						int i;
-						for (i=HEAD ; i < HEAD + PKT_LEN ; i++) {
-							USART_receive();
-							receive_buffer[i] = UDR;
-							//Calculate CRC
-							checksum = xmodem_calculate_crc(checksum, receive_buffer[i]);
-						}//for (i=0 ; i < HEAD+PKT_LEN+CSUM ; i++) {
-
-						USART_receive();//CRC1
-						receive_buffer[HEAD+PKT_LEN+1] = UDR;
-						USART_receive();//CRC2
-						receive_buffer[HEAD+PKT_LEN+2] = UDR;
-
-						//Check CRC
-						if (checksum == 0x00 ) {
-							USART_transmit(ACK);
-							packet++;
-							attempts = 0;
-						}
-						else {
-							USART_transmit(NACK);
-							attempts++;
-						}
-
-					}//if (UDR == 255 - packets ) {
-				}//if (UDR == packets )
-			}//if (UDR == SOH ) {
-		}//if ( UDR != EOT ) {
-		else {
-		//ALL RECEIVED SUCCESFULLY
-		//NOTIFY
-		return 0;
-		}
-	}//while(attempts < MAX_ATTEMPTS){
-	return packet;
-
-
+   TIMSK &= ~(1 << OCIE1A); // Disable CTC interrupt
 }
-
 
 
 int main(void) {
 
+
+	//DDRB = 0xFF; //PORTB for output
 	//UART Port speed 115200  for the crystal freq. 7.3MHz
 	USART_init ();
+
+
+   TCCR1B |= (1 << WGM12); // Configure timer 1 for CTC mode
+
+   TIMSK |= (1 << OCIE1A); // Enable CTC interrupt
+   TCCR1B |= ((1 << CS10) | (1 << CS11)); // Set up timer at Fcpu/64
+
+   OCR1A   = 7000; // Set CTC compare value
+	TCCR1B |= ((1 << CS10) | (1 << CS11)); // Start timer at Fcpu/64
+
 
 	USART_transmit('c');// Change the directory on
 	USART_transmit('d');//ARM to home. Cannot run
@@ -151,20 +128,137 @@ int main(void) {
 	USART_transmit(0x0A);
 
 
-
-	_delay_us(100);
-	USART_transmit('C');
 	//PORTA = xmodem_receive();
 	//NO SUCCES - NOTIFY
 
-
+   while(1) {
+   }
 
 	//close xmodem on ARM side
 	//USART_transmit(0x03)//^C;
-	USART_transmit('^');
-	USART_transmit('C');
-	USART_transmit(0x0A);
+	//USART_transmit('^');
+	//USART_transmit('C');
+	//USART_transmit(0x0A);
 }
+
+// USART Receiver interrupt service routine
+
+ISR(USART_RXC_vect) {
+//SIGNAL (SIG_UART_RECV) {
+	char data;
+	data=UDR;
+   receive[i]= data;
+   i++;
+
+	if (command_indicator != 0x00 ){
+		if (attempts < MAX_ATTEMPTS) {
+			switch (data ) {
+				case EOT:
+					if ( buffer_index != 0 ) {
+						receive_buffer[buffer_index] = data;
+						buffer_index++;
+						
+					}
+					break;
+
+				case SOH://Start of header
+					if ( buffer_index == 0 || buffer_index == 1) {
+						receive_buffer[buffer_index] = data;
+						buffer_index++;
+				   }
+				break;
+				
+		
+			
+				default:
+				
+					
+					
+					if ( buffer_index > 2 && buffer_index < HEAD + PKT_LEN ) {
+						//general byte
+						receive_buffer[buffer_index] = data;
+						csum.checksum = xmodem_calculate_crc(csum.checksum, receive_buffer[buffer_index]);
+						buffer_index++;
+					}//if ( buffer_index > 2 && buffer_index < HEAD + PKT_LEN ) {
+					if (  buffer_index == 0x02 ){
+						//header
+						receive_buffer[buffer_index] = data;
+						buffer_index++;
+					}
+					//CRC
+					if ( buffer_index == HEAD+PKT_LEN + 1 || buffer_index == HEAD+PKT_LEN ){
+						//header
+						receive_buffer[buffer_index] = data;
+						buffer_index++;
+					}
+					
+					
+					
+					//Check CRC
+					if ( buffer_index == HEAD+PKT_LEN+CSUM ) {
+
+						if (receive_buffer[HEAD+PKT_LEN+CSUM - 1] == csum.val[1] && receive_buffer[HEAD+PKT_LEN+CSUM - 2] == csum.val[0]) {
+							//CRC is correct
+							buffer_index = 0;
+							USART_transmit(ACK);
+						}
+						else {
+							//CRC is not correct
+
+							buffer_index = 0;
+							USART_transmit(NACK);
+							attempts++;
+						}
+					}
+
+				
+			}//switch (data )
+
+		
+		}//if (attempts < MAX_ATTEMPTS)
+		else {	//Couldn't receive packets. MAX_ATTEMPTS were performed
+      	//close xmodem on ARM side
+			USART_transmit(0x03);//^C
+			//USART_transmit('^');
+			//USART_transmit('C');
+			//USART_transmit(0x0A);
+      }
+	
+  }//if (command_indicator != 0x00 )
+
+	
+}//ISR(USART_RXC_vect)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

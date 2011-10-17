@@ -24,7 +24,7 @@ void USART_transmit( unsigned char data ) {
 	while ( !( UCSRA & (1<<UDRE)) ); /* Put data into buffer, sends the data */
 	UDR = data;
 }
-void USART_init() {
+void USART_init( void ) {
 	/* Set baud rate */
 	UBRRH = UBRRVAL>>8;
 	UBRRL = UBRRVAL;
@@ -40,3 +40,5 @@ unsigned char USART_receive( void ) {
 	while ( !(UCSRA & (1<<RXC)) ); /* Get and return received data from buffer */
 	return UDR;
 }
+
+
