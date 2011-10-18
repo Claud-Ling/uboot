@@ -8,7 +8,11 @@ Check every 128 bytes received, and write in flash if the content is different
 LED indication of succesfully received firmware
 Led indication for waiting time for incoming firmware
 Do not write 1A bytes in the end of the last packet
+Check the duplication of <CR> coming from the ARM side
 
+Algorithm for flashing firmware
+1. Waiting for 1-2 sec when all the odd data from ARM side will come out and will be ignored (Show by LED)
+2. If "$U" - command existed in odd data  - allow to start firmware update.
 
 
 WHAT IS ALREADY IMPLEMENTED AND CHECKED

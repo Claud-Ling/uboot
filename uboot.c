@@ -10,11 +10,14 @@
 #include "uart.h"
 #include <string.h>
 #include <util/delay.h>
+#include <stdio.h>
 
 #define ACK		0x06
 #define NACK	0x15
 #define EOT		0x04
 #define SOH		0x01
+#define CR		0x0D
+#define LF		0x0A
 
 #define HEAD		3
 #define CSUM		2
@@ -26,6 +29,10 @@
 volatile unsigned int buffer_index = 0;
 volatile int attempts = 0;
 volatile char command_indicator = 0x00;
+volatile char CR_indicator = 0x00; // Shows that we received <CR> already.
+//<CR> dublicates by the ARM console, probably because of the linux requirements.
+//We need to eliminate that duplication
+
 
 //volatile int packet = 1;
 volatile   char receive_buffer[HEAD+PKT_LEN+CSUM];
@@ -49,9 +56,13 @@ int xmodem_calculate_crc(unsigned int crc, unsigned char data)
 
 ISR(TIMER1_COMPA_vect)
 {
-   command_indicator = 'g';
-   USART_transmit('C');
-   USART_transmit(0x0A);
+	//This enterrupt allows to skip
+	//all the odd data on com port, so we can ignore it in the beginning
+	//and start to receive only required data
+	command_indicator = 'g';
+	puts("C\r");
+	//USART_transmit('C');
+	//USART_transmit(0x0A);
 
    TIMSK &= ~(1 << OCIE1A); // Disable CTC interrupt
 }
@@ -73,7 +84,9 @@ int main(void) {
    OCR1A   = 7000; // Set CTC compare value
 	TCCR1B |= ((1 << CS10) | (1 << CS11)); // Start timer at Fcpu/64
 
-
+	puts("cd /home\r");
+	puts("./xmodem -p /dev/console -i avr_robot.hex\r");
+/*
 	USART_transmit('c');// Change the directory on
 	USART_transmit('d');//ARM to home. Cannot run
 	USART_transmit(' ');///home/status STATUS__
@@ -127,7 +140,7 @@ int main(void) {
 	USART_transmit('x');
 	USART_transmit(0x0A);
 
-
+*/
 	//PORTA = xmodem_receive();
 	//NO SUCCES - NOTIFY
 
@@ -147,8 +160,11 @@ ISR(USART_RXC_vect) {
 //SIGNAL (SIG_UART_RECV) {
 	char data;
 	data=UDR;
-   receive[i]= data;
-   i++;
+	receive[i]= data;
+	i++;
+
+
+
 
 	if (command_indicator != 0x00 ){
 		if (attempts < MAX_ATTEMPTS) {
@@ -168,18 +184,27 @@ ISR(USART_RXC_vect) {
 				   }
 				break;
 				
-		
+
 			
 				default:
 				
 					
-					
+					//Here we receive the general byte of the 128 bytes length packet
 					if ( buffer_index > 2 && buffer_index < HEAD + PKT_LEN ) {
 						//general byte
-						receive_buffer[buffer_index] = data;
-						csum.checksum = xmodem_calculate_crc(csum.checksum, receive_buffer[buffer_index]);
-						buffer_index++;
+
+						//Eliminate of <CR> duplication character
+						if ( data != CR && receive_buffer[buffer_index - 1]  != CR) {
+							//No Duplication
+							csum.checksum = xmodem_calculate_crc(csum.checksum, receive_buffer[buffer_index]);
+							//write data to receive buffer
+							receive_buffer[buffer_index] = data;
+							buffer_index++;
+						}
+
+
 					}//if ( buffer_index > 2 && buffer_index < HEAD + PKT_LEN ) {
+
 					if (  buffer_index == 0x02 ){
 						//header
 						receive_buffer[buffer_index] = data;
@@ -197,16 +222,18 @@ ISR(USART_RXC_vect) {
 					//Check CRC
 					if ( buffer_index == HEAD+PKT_LEN+CSUM ) {
 
-						if (receive_buffer[HEAD+PKT_LEN+CSUM - 1] == csum.val[1] && receive_buffer[HEAD+PKT_LEN+CSUM - 2] == csum.val[0]) {
+						if (receive_buffer[HEAD+PKT_LEN] == csum.val[1] && receive_buffer[HEAD+PKT_LEN - 1] == csum.val[0]) {
 							//CRC is correct
 							buffer_index = 0;
-							USART_transmit(ACK);
+							puts("\x06\r");
+							//USART_transmit(ACK);
 						}
 						else {
 							//CRC is not correct
 
 							buffer_index = 0;
-							USART_transmit(NACK);
+							puts("\x15\r");
+							//USART_transmit(NACK);
 							attempts++;
 						}
 					}
@@ -225,7 +252,7 @@ ISR(USART_RXC_vect) {
       }
 	
   }//if (command_indicator != 0x00 )
-
+	//Ignore all the data from ARM till the <SOH> will be received
 	
 }//ISR(USART_RXC_vect)
 
