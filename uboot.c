@@ -163,10 +163,18 @@ ISR(USART_RXC_vect) {
 	receive[i]= data;
 	i++;
 
+	//If we received "$U" command from the ARM side we can update firmware.
+	if (data == 'U' && command_indicator == 'w') {
+			command_indicator == 'g';
+		}
+	else {
+		command_indicator = 0x00;
+	}
+	if (data == '$') {
+		command_indicator == 'w';
+	}
 
-
-
-	if (command_indicator != 0x00 ){
+	if (command_indicator == 'g' ){
 		if (attempts < MAX_ATTEMPTS) {
 			switch (data ) {
 				case EOT:
