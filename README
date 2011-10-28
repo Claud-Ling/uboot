@@ -13,6 +13,9 @@ of Data.If CRC equals the received CRC in Packet Header then AVR sends
 to UART number of received packet, that means that packet received
 correctly and we can receive the next packet.
 
+MAIN RESTRICTION - allow to send only 99 of packets. So the hex file shouldn't be more
+then 12627 bytes if more, program need to be changed.
+
 WHAT IS GOING 2 B IMPLEMENTED
 LED indication of each packet
 Watchdog if nothing is going on

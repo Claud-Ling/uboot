@@ -27,9 +27,44 @@ volatile unsigned char 	received_packet_number;
 volatile unsigned char 	receive_buffer[HEAD+MAX_DATA_SIZE+CRC];
 
 volatile union  {
-		unsigned volatile  int checksum;
-		unsigned volatile  char val[2];
+	unsigned volatile  int checksum;
+	unsigned volatile  char val[2];
 } crc;
+
+
+void send_to_UART () {
+	//The packets number is limited with 99
+	//if more, need to change the algorithm HEX2ASCII
+	//HEX2ASCII Algorithm
+	unsigned char tens = received_packet_number/10;
+	unsigned char units = received_packet_number%10;
+	tens += 0x40;
+	units += 0x40;
+
+	USART_transmit('.');// Change the directory on
+	USART_transmit('/');
+	USART_transmit('a');//ARM to home. Cannot run
+	USART_transmit('v');///home/status STATUS__
+	USART_transmit('r');//need to cd to /home
+	USART_transmit('c');
+	USART_transmit('a');
+	USART_transmit('t');
+	USART_transmit(' ');
+	USART_transmit('c');// Change the directory on
+	USART_transmit('o');//ARM to home. Cannot run
+	USART_transmit('n');///home/status STATUS__
+	USART_transmit('s');//need to cd to /home
+	USART_transmit('o');
+	USART_transmit('l');
+	USART_transmit('e');
+	USART_transmit(' ');
+
+	USART_transmit(tens); //Transmit HEX2ASCII
+	USART_transmit(units);//number of received packet
+	USART_transmit(0x0A);
+
+
+}
 
 
 // USART Receiver interrupt service routine
@@ -65,7 +100,8 @@ ISR(USART_RXC_vect) {
 			if ( crc.val[0] == receive_buffer[3] && crc.val[1] == receive_buffer[4] ) {
 				//Succesfully received
 				//Send to UART number of received packet
-
+				received_packet_number = receive_buffer[1];
+				send_to_UART ( );
 
 				/*
 				if ( received_data_size != MAX_PACKET_SIZE) {
@@ -75,6 +111,7 @@ ISR(USART_RXC_vect) {
 				*/
 
 			}
+
 			crc.checksum = 0;
 			buffer_index = 0;
 			received_packet_indicator = 0x00;
@@ -88,10 +125,6 @@ ISR(USART_RXC_vect) {
 	}
 }//ISR(USART_RXC_vect)
 
-
-
-
-
 int main(void) {
 
 	crc.checksum = 0;
@@ -99,14 +132,14 @@ int main(void) {
 	USART_init ();
 
 
-	//TCCR1B |= (1 << WGM12); // Configure timer 1 for CTC mode
-
-	//TIMSK |= (1 << OCIE1A); // Enable CTC interrupt
-	//TCCR1B |= ((1 << CS10) | (1 << CS11)); // Set up timer at Fcpu/64
-
-	//OCR1A   = 7000; // Set CTC compare value
-	//TCCR1B |= ((1 << CS10) | (1 << CS11)); // Start timer at Fcpu/64
-
+	//Timer for boot delay
+	/*
+	TCCR1B |= (1 << WGM12); // Configure timer 1 for CTC mode
+	TIMSK |= (1 << OCIE1A); // Enable CTC interrupt
+	TCCR1B |= ((1 << CS10) | (1 << CS11)); // Set up timer at Fcpu/64
+	OCR1A   = 7000; // Set CTC compare value
+	TCCR1B |= ((1 << CS10) | (1 << CS11)); // Start timer at Fcpu/64
+	 */
 	USART_transmit('c');// Change the directory on
 	USART_transmit('d');//ARM to home. Cannot run
 	USART_transmit(' ');///home/status STATUS__
@@ -117,25 +150,10 @@ int main(void) {
 	USART_transmit('e');
 	USART_transmit(0x0A);
 
-	USART_transmit('.');// Change the directory on
-	USART_transmit('/');
-	USART_transmit('a');//ARM to home. Cannot run
-	USART_transmit('v');///home/status STATUS__
-	USART_transmit('r');//need to cd to /home
-	USART_transmit('c');
-	USART_transmit('a');
-	USART_transmit('t');
-	USART_transmit(' ');
-	USART_transmit('c');// Change the directory on
-	USART_transmit('o');//ARM to home. Cannot run
-	USART_transmit('n');///home/status STATUS__
-	USART_transmit('s');//need to cd to /home
-	USART_transmit('o');
-	USART_transmit('l');
-	USART_transmit('e');
-	USART_transmit(' ');
-	USART_transmit('0');
-	USART_transmit(0x0A);
+	received_packet_number = 0; //Send to UART that AVR is ready to update
+	send_to_UART ( );//firmware
+
+
 
 	while(1) {
 	}
@@ -146,15 +164,18 @@ int main(void) {
 /*
 ISR(TIMER1_COMPA_vect)
 {
-	//This enterrupt allows to skip
-	//all the odd data on com port, so we can ignore it in the beginning
-	//and start to receive only required data
-	//received_packet_indicator = 'g';
-	//puts("C\r");
-	//USART_transmit('C');
-	//USART_transmit(0x0A);
+	//This interrupt make delay for the program
+	//We wait for the data from UART for 4 sec
+	//If nothing happens - goto Main program
 
-   //TIMSK &= ~(1 << OCIE1A); // Disable CTC interrupt
+	//Stop timer
+	TCCR1B = 0x00;
+	OCR1A   = 0x00;
+	TIMSK &= ~(1 << OCIE1A); // Disable CTC interrupt
+
+	if ( received_packet_number == 0x00 ) {
+	//GOTO_MAIN_PROGRAM
+	}
 }
 */
 
