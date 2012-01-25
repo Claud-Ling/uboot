@@ -12,8 +12,11 @@
 #include <util/delay.h>
 #include <stdio.h>
 
-
-#define HEAD		3
+#define PACKET_NUMBER 0
+#define PACKET_SIZE	 1
+#define CRC0		2
+#define CRC1		3		
+#define HEADER		4
 #define CRC			2
 #define MAX_DATA_SIZE 128
 
@@ -24,7 +27,7 @@ volatile unsigned char 	received_data_size = MAX_DATA_SIZE;
 volatile unsigned char 	received_packet_number;
 
 
-volatile unsigned char 	receive_buffer[HEAD+MAX_DATA_SIZE+CRC];
+volatile unsigned char 	receive_buffer[HEADER+MAX_DATA_SIZE];
 
 volatile union  {
 	unsigned volatile  int checksum;
@@ -32,14 +35,16 @@ volatile union  {
 } crc;
 
 
+void send_to_UART (void);
+
 void send_to_UART () {
 	//The packets number is limited with 99
 	//if more, need to change the algorithm HEX2ASCII
 	//HEX2ASCII Algorithm
 	unsigned char tens = received_packet_number/10;
 	unsigned char units = received_packet_number%10;
-	tens += 0x40;
-	units += 0x40;
+	tens += 0x30;
+	units += 0x30;
 
 	USART_transmit('.');// Change the directory on
 	USART_transmit('/');
@@ -76,35 +81,40 @@ ISR(USART_RXC_vect) {
 	//If received_packet_indicator = '$' that means - we receiving the packet
 	if (received_packet_indicator == '$') {
 		//Received any byte
-		if ( buffer_index == 2) {
+		if ( buffer_index == PACKET_SIZE) {
 			//Receive packet size
 			receive_buffer[buffer_index] = data;
 			received_data_size = data;
 			buffer_index++;
 		}
-		else if ( buffer_index > HEAD + CRC  && buffer_index < received_data_size + HEAD + CRC ) {
+		
+		else if ( buffer_index >= HEADER  && buffer_index < received_data_size + HEADER ) {
 			//Receive general byte
 			receive_buffer[buffer_index] = data;
 			crc.checksum = crc.checksum + data;
 			buffer_index++;
 		}
-		else if ( buffer_index < HEAD + CRC && buffer_index != 2 ) {
+		else if ( buffer_index < HEADER && buffer_index != PACKET_SIZE ) {
 			//Receive header except packet size
 			receive_buffer[buffer_index] = data;
 			buffer_index++;
 		}
-		else if ( buffer_index > received_data_size + HEAD + CRC ) {
+		
+		else if ( buffer_index == received_data_size + HEADER) {
 			//Last byte of packet was received
 
 			//check CRC, if OK send to UART number of received packet
-			if ( crc.val[0] == receive_buffer[3] && crc.val[1] == receive_buffer[4] ) {
+			if ( crc.val[0] == receive_buffer[CRC1] && crc.val[1] == receive_buffer[CRC0] ) {
 				//Succesfully received
 				//Send to UART number of received packet
-				received_packet_number = receive_buffer[1];
+				received_packet_number = receive_buffer[PACKET_NUMBER];
 				send_to_UART ( );
 
+				
+				if ( received_data_size != MAX_DATA_SIZE) {
+				buffer_index=0;
+				}
 				/*
-				if ( received_data_size != MAX_PACKET_SIZE) {
 				LAST PACKET WERE RECEIVED
 				RUN_MAIN_PROGRAM
 				}
@@ -117,6 +127,7 @@ ISR(USART_RXC_vect) {
 			received_packet_indicator = 0x00;
 
 		}
+	
 	}//if (received_packet_indicator == '$') {
 
 	if(data =='$' && buffer_index == 0) {
@@ -178,6 +189,9 @@ ISR(TIMER1_COMPA_vect)
 	}
 }
 */
+
+
+
 
 
 
